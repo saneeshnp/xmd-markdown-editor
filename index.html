@@ -27,9 +27,9 @@
       --space-8: 2rem;
       --space-10: 2.5rem;
       --space-12: 3rem;
-      --radius-sm: 0.5rem;
-      --radius-md: 0.875rem;
-      --radius-lg: 1.25rem;
+      --radius-sm: 0.4rem;
+      --radius-md: 0.7rem;
+      --radius-lg: 0.95rem;
       --color-bg: #f9f9f7;
       --color-surface: #ffffff;
       --color-surface-2: #f3f3f0;
@@ -118,7 +118,8 @@
     .app {
       width: min(1120px, calc(100% - 1.5rem));
       margin: 0 auto;
-      padding: var(--space-4) 0 var(--space-10);
+      min-height: 100vh;
+      padding: var(--space-6) 0 var(--space-6);
     }
 
     .workspace-bar {
@@ -135,23 +136,11 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: var(--space-2);
       min-width: 0;
     }
-    .brand-mark {
-      width: 1.9rem;
-      height: 1.9rem;
-      border-radius: 0.55rem;
-      display: grid;
-      place-items: center;
-      border: 1px solid var(--color-border);
-      background: var(--color-surface);
-      box-shadow: var(--shadow-sm);
-    }
-    .brand-mark svg { width: 0.95rem; height: 0.95rem; }
     .brand-copy strong {
       display: block;
-      font-size: 0.92rem;
+      font-size: 1.05rem;
       font-weight: 700;
       letter-spacing: -0.01em;
       line-height: 1.05;
@@ -169,15 +158,6 @@
       gap: var(--space-2);
       flex-wrap: wrap;
       justify-content: flex-end;
-    }
-
-    .workspace-meta {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: var(--space-3);
-      flex: 1 1 auto;
-      min-width: 0;
     }
 
     .mode-switch {
@@ -268,14 +248,29 @@
       overflow: hidden;
     }
 
+    .workspace-shell {
+      min-height: calc(100vh - (var(--space-6) * 2));
+      display: flex;
+      flex-direction: column;
+    }
+
     .edit-surface {
       display: none;
+      min-height: 0;
     }
     .mode-edit .edit-surface {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
     }
     .mode-edit .preview-surface {
       display: none;
+    }
+    .mode-preview .preview-surface {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
     }
 
     .mode-stat {
@@ -286,8 +281,35 @@
       display: inline-flex;
     }
 
+    .workspace-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+      padding: var(--space-3) var(--space-5);
+      border-top: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      font-size: var(--text-xs);
+      font-variant-numeric: tabular-nums;
+      background: var(--color-surface-2);
+    }
+
+    .workspace-footer-meta {
+      justify-content: flex-start;
+    }
+
+    .workspace-footer-note {
+      display: none;
+    }
+    .mode-preview .workspace-footer-note.preview-only,
+    .mode-edit .workspace-footer-note.edit-only {
+      display: inline;
+    }
+
     .editor {
-      min-height: 68vh;
+      flex: 1 1 auto;
+      min-height: clamp(26rem, 64vh, 56rem);
       padding: var(--space-5);
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
       line-height: 1.75;
@@ -297,8 +319,9 @@
     .editor::placeholder { color: var(--color-text-faint); }
 
     .preview-shell {
+      flex: 1 1 auto;
       padding: var(--space-6) clamp(1rem, 3vw, 3rem);
-      min-height: 68vh;
+      min-height: clamp(26rem, 64vh, 56rem);
       background: var(--color-surface);
     }
     .preview-doc {
@@ -452,35 +475,40 @@
       font-family: var(--font-ui);
     }
 
-    .statusbar {
-      display: flex;
-      justify-content: space-between;
-      gap: var(--space-4);
-      flex-wrap: wrap;
-      padding: var(--space-3) var(--space-5);
-      border-top: 1px solid var(--color-border);
-      color: var(--color-text-muted);
-      font-size: var(--text-xs);
-      font-variant-numeric: tabular-nums;
-      background: var(--color-surface-2);
-    }
-
     @media (max-width: 820px) {
+      .app {
+        min-height: auto;
+        padding: var(--space-4) 0 var(--space-6);
+      }
+      .workspace-shell {
+        min-height: auto;
+      }
+      .mode-edit .edit-surface,
+      .mode-preview .preview-surface {
+        flex: none;
+      }
       .workspace-bar {
         flex-direction: column;
         align-items: stretch;
         padding: var(--space-3);
         min-height: auto;
       }
-      .workspace-meta {
-        justify-content: flex-start;
+      .editor {
+        min-height: 52vh;
       }
       .meta-strip { justify-content: flex-start; }
       .toolbar { justify-content: space-between; }
-      .preview-shell { padding-inline: 1rem; }
+      .preview-shell {
+        min-height: 52vh;
+        padding-inline: 1rem;
+      }
     }
 
     @media (max-width: 560px) {
+      .editor,
+      .preview-shell {
+        min-height: 46vh;
+      }
       .meta-strip {
         gap: var(--space-2);
       }
@@ -512,26 +540,10 @@
         <div class="workspace-bar">
           <div>
             <div class="brand">
-              <div class="brand-mark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M6 5.5h7.25c1.8 0 3 1.16 3 2.8s-1.2 2.7-3 2.7H6z"></path>
-                  <path d="M6 11h8.2c2.12 0 3.55 1.2 3.55 2.88S16.32 16.8 14.2 16.8H6z"></path>
-                  <path d="M6 4v13.8"></path>
-                </svg>
-              </div>
               <div class="brand-copy">
-                <strong>x markdown</strong>
+                <strong>X Markdown</strong>
                 <span>Extremely simple markdown editor.</span>
               </div>
-            </div>
-          </div>
-          <div class="workspace-meta" aria-label="Document statistics">
-            <div class="meta-strip">
-              <span id="wordCount">0 words</span>
-              <span id="charCount">0 characters</span>
-              <span id="readTime">0 min read</span>
-              <span id="lineCount" class="mode-stat edit-only">0 lines</span>
-              <span id="headingCount" class="mode-stat preview-only">0 headings</span>
             </div>
           </div>
           <div class="toolbar">
@@ -549,11 +561,7 @@
           </div>
         </div>
         <section class="edit-surface" aria-label="Markdown editor">
-          <textarea id="editor" class="editor" spellcheck="false" aria-label="Markdown document editor"></textarea>
-          <div class="statusbar">
-            <span>Tab to indent inside code blocks as usual in your browser.</span>
-            <span id="cursorMeta">Line 1, column 1</span>
-          </div>
+          <textarea id="editor" class="editor" spellcheck="true" aria-label="Markdown document editor"></textarea>
         </section>
 
         <section class="preview-surface" aria-label="Markdown preview">
@@ -563,11 +571,21 @@
               Start writing in Edit mode and the preview will appear here.
             </div>
           </div>
-          <div class="statusbar">
-            <span>Enter inline edit: click a block.</span>
-            <span>Save: Cmd/Ctrl + Enter. Cancel: Escape.</span>
-          </div>
         </section>
+
+        <div class="workspace-footer">
+          <div class="meta-strip workspace-footer-meta" aria-label="Document statistics">
+            <span id="wordCount">0 words</span>
+            <span id="charCount">0 characters</span>
+            <span id="readTime">0 min read</span>
+            <span id="lineCount" class="mode-stat edit-only">0 lines</span>
+            <span id="headingCount" class="mode-stat preview-only">0 headings</span>
+          </div>
+          <div>
+            <span id="cursorMeta" class="workspace-footer-note edit-only">Line 1, column 1</span>
+            <span class="workspace-footer-note preview-only">Enter inline edit: click a block. Save: Cmd/Ctrl + Enter. Cancel: Escape.</span>
+          </div>
+        </div>
       </section>
     </main>
   </div>
@@ -589,6 +607,8 @@
     const clearBtn = document.getElementById('clearBtn');
     const themeToggle = document.getElementById('themeToggle');
     const STORAGE_KEY = 'x-markdown-content';
+    const THEME_KEY = 'x-markdown-theme';
+    const savedTheme = localStorage.getItem(THEME_KEY);
 
     const starterMarkdown = `# A quieter markdown editor
 
@@ -615,9 +635,9 @@ console.log(state.mode);
     const state = {
       markdown: localStorage.getItem(STORAGE_KEY) ?? starterMarkdown,
       mode: 'edit',
-      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+      theme: savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
       activeBlock: null,
-      themeLocked: false
+      themeLocked: Boolean(savedTheme)
     };
 
     document.documentElement.setAttribute('data-theme', state.theme);
@@ -634,6 +654,35 @@ console.log(state.mode);
       localStorage.setItem(STORAGE_KEY, state.markdown);
     }
 
+    function persistTheme() {
+      localStorage.setItem(THEME_KEY, state.theme);
+    }
+
+    function syncEditorFromState() {
+      editor.value = state.markdown;
+      editor.defaultValue = state.markdown;
+      updateCursorMeta();
+    }
+
+    function initializeApp() {
+      state.activeBlock = null;
+      document.documentElement.setAttribute('data-theme', state.theme);
+      updateThemeIcon();
+      renderAll();
+      setMode('edit');
+      syncEditorFromState();
+    }
+
+    function startAppWhenReady() {
+      if (!window.marked || !window.DOMPurify) {
+        window.setTimeout(startAppWhenReady, 16);
+        return;
+      }
+
+      window.marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
+      initializeApp();
+    }
+
     function setMode(mode) {
       state.mode = mode;
       app.classList.toggle('mode-edit', mode === 'edit');
@@ -644,6 +693,7 @@ console.log(state.mode);
       previewModeBtn.setAttribute('aria-selected', String(mode === 'preview'));
       if (mode === 'edit') {
         state.activeBlock = null;
+        syncEditorFromState();
         editor.focus();
       }
     }
@@ -742,9 +792,8 @@ console.log(state.mode);
     }
 
     function renderAll() {
-      editor.value = state.markdown;
+      syncEditorFromState();
       updateStats();
-      updateCursorMeta();
       renderPreview();
     }
 
@@ -871,6 +920,7 @@ console.log(state.mode);
     themeToggle.addEventListener('click', () => {
       state.themeLocked = true;
       state.theme = state.theme === 'dark' ? 'light' : 'dark';
+      persistTheme();
       document.documentElement.setAttribute('data-theme', state.theme);
       updateThemeIcon();
     });
@@ -882,10 +932,9 @@ console.log(state.mode);
       updateThemeIcon();
     });
 
-    marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
-    updateThemeIcon();
-    renderAll();
-    setMode('edit');
+    startAppWhenReady();
+    window.addEventListener('load', startAppWhenReady);
+    window.addEventListener('pageshow', startAppWhenReady);
   </script>
 </body>
 </html>
