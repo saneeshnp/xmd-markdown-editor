@@ -12,10 +12,9 @@ It provides:
 
 ## Demo
 
-Coming soon: `https://example.com`
+Live Demo: `https://saneeshnp.github.io/xmd-markdown-editor/`
 
 ## Usage
 
 Open `index.html` in a browser to use the editor locally. Or just use the demo URL. Bookmark and forget, use it whenever you need a markdown clipboard.
 
-If you plan to host it on GitHub Pages, you can publish this repository and replace the demo placeholder link above when the site is live.

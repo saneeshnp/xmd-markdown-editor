@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Markdown Editor</title>
+  <title>XMD Markdown Editor</title>
   <meta name="description" content="A minimal single-page markdown editor with edit mode and inline block editing in preview mode." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,6 +30,7 @@
       --radius-sm: 0.4rem;
       --radius-md: 0.7rem;
       --radius-lg: 0.95rem;
+      --radius-pill: 0.85rem;
       --color-bg: #f9f9f7;
       --color-surface: #ffffff;
       --color-surface-2: #f3f3f0;
@@ -123,6 +124,9 @@
     }
 
     .workspace-bar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -130,7 +134,9 @@
       padding: var(--space-3) var(--space-4);
       min-height: 3.5rem;
       border-bottom: 1px solid var(--color-border);
-      background: var(--color-surface);
+      background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
     }
 
     .brand {
@@ -166,14 +172,14 @@
       gap: 0.25rem;
       padding: 0.18rem;
       border: 1px solid var(--color-border);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       background: var(--color-surface);
       box-shadow: var(--shadow-sm);
     }
     .mode-btn {
       min-height: 2.15rem;
       padding: 0.45rem 0.85rem;
-      border-radius: 999px;
+      border-radius: calc(var(--radius-pill) - 0.15rem);
       font-size: 0.82rem;
       font-weight: 600;
       color: var(--color-text-muted);
@@ -189,7 +195,7 @@
       min-height: 2.15rem;
       display: inline-grid;
       place-items: center;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       border: 1px solid var(--color-border);
       background: var(--color-surface);
       box-shadow: var(--shadow-sm);
@@ -199,7 +205,7 @@
     .text-btn {
       min-height: 2.15rem;
       padding: 0.45rem 0.8rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       border: 1px solid var(--color-border);
       background: var(--color-surface);
       box-shadow: var(--shadow-sm);
@@ -230,7 +236,7 @@
       align-items: center;
       min-height: 1.95rem;
       padding: 0.32rem 0.68rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
       background: color-mix(in srgb, var(--color-primary-soft) 70%, var(--color-surface));
       color: var(--color-primary);
@@ -374,7 +380,7 @@
     }
     .block-actions button {
       padding: 0.5rem 0.8rem;
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       border: 1px solid var(--color-border);
       background: var(--color-surface);
       font-size: var(--text-xs);
@@ -541,15 +547,15 @@
           <div>
             <div class="brand">
               <div class="brand-copy">
-                <strong>X Markdown</strong>
+                <strong>XMD Editor</strong>
                 <span>Extremely simple markdown editor.</span>
               </div>
             </div>
           </div>
           <div class="toolbar">
             <div class="mode-switch" role="tablist" aria-label="Modes">
-              <button class="mode-btn active" id="editModeBtn" role="tab" aria-selected="true" type="button">Edit</button>
-              <button class="mode-btn" id="previewModeBtn" role="tab" aria-selected="false" type="button">Preview</button>
+              <button class="mode-btn active" id="editModeBtn" role="tab" aria-selected="true" type="button">Text</button>
+              <button class="mode-btn" id="previewModeBtn" role="tab" aria-selected="false" type="button">Markdown</button>
             </div>
             <button class="icon-btn" id="copyBtn" type="button" aria-label="Copy markdown">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a2 2 0 0 1 2-2h9"></path></svg>
@@ -607,8 +613,10 @@
     const clearBtn = document.getElementById('clearBtn');
     const themeToggle = document.getElementById('themeToggle');
     const STORAGE_KEY = 'x-markdown-content';
+    const MODE_KEY = 'x-markdown-mode';
     const THEME_KEY = 'x-markdown-theme';
     const savedTheme = localStorage.getItem(THEME_KEY);
+    const savedMode = localStorage.getItem(MODE_KEY);
 
     const starterMarkdown = `# A quieter markdown editor
 
@@ -634,7 +642,7 @@ console.log(state.mode);
 
     const state = {
       markdown: localStorage.getItem(STORAGE_KEY) ?? starterMarkdown,
-      mode: 'edit',
+      mode: savedMode === 'preview' ? 'preview' : 'edit',
       theme: savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
       activeBlock: null,
       themeLocked: Boolean(savedTheme)
@@ -658,6 +666,10 @@ console.log(state.mode);
       localStorage.setItem(THEME_KEY, state.theme);
     }
 
+    function persistMode() {
+      localStorage.setItem(MODE_KEY, state.mode);
+    }
+
     function syncEditorFromState() {
       editor.value = state.markdown;
       editor.defaultValue = state.markdown;
@@ -669,8 +681,7 @@ console.log(state.mode);
       document.documentElement.setAttribute('data-theme', state.theme);
       updateThemeIcon();
       renderAll();
-      setMode('edit');
-      syncEditorFromState();
+      setMode(state.mode);
     }
 
     function startAppWhenReady() {
@@ -685,6 +696,7 @@ console.log(state.mode);
 
     function setMode(mode) {
       state.mode = mode;
+      persistMode();
       app.classList.toggle('mode-edit', mode === 'edit');
       app.classList.toggle('mode-preview', mode === 'preview');
       editModeBtn.classList.toggle('active', mode === 'edit');
