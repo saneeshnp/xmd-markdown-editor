@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markdown Editor</title>
+  <meta name="description" content="A minimal single-page markdown editor with edit mode and inline block editing in preview mode." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
+  <script defer src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.2.7/dist/purify.min.js"></script>
+  <style>
+    :root,
+    [data-theme="light"] {
+      --text-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.875rem);
+      --text-sm: clamp(0.875rem, 0.83rem + 0.18vw, 1rem);
+      --text-base: clamp(1rem, 0.96rem + 0.2vw, 1.0625rem);
+      --text-lg: clamp(1.125rem, 1.02rem + 0.45vw, 1.35rem);
+      --text-xl: clamp(1.5rem, 1.25rem + 0.8vw, 2rem);
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-5: 1.25rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+      --space-10: 2.5rem;
+      --space-12: 3rem;
+      --radius-sm: 0.5rem;
+      --radius-md: 0.875rem;
+      --radius-lg: 1.25rem;
+      --color-bg: #f9f9f7;
+      --color-surface: #ffffff;
+      --color-surface-2: #f3f3f0;
+      --color-border: rgba(15, 23, 42, 0.1);
+      --color-border-strong: rgba(15, 23, 42, 0.18);
+      --color-text: #191919;
+      --color-text-muted: #5f6368;
+      --color-text-faint: #8b8f94;
+      --color-primary: #1a8917;
+      --color-primary-soft: rgba(26, 137, 23, 0.08);
+      --color-code-bg: #f6f6f3;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+      --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --font-ui: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --font-prose: 'Source Serif 4', Georgia, serif;
+      --transition: 160ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    [data-theme="dark"] {
+      --color-bg: #121212;
+      --color-surface: #171717;
+      --color-surface-2: #1e1e1e;
+      --color-border: rgba(255, 255, 255, 0.09);
+      --color-border-strong: rgba(255, 255, 255, 0.16);
+      --color-text: #f3f3f1;
+      --color-text-muted: #a7aaa6;
+      --color-text-faint: #7a7d79;
+      --color-primary: #57ad55;
+      --color-primary-soft: rgba(87, 173, 85, 0.12);
+      --color-code-bg: #20201e;
+      --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
+      --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.32);
+    }
+
+    * { box-sizing: border-box; }
+    html {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: var(--font-ui);
+      font-size: var(--text-base);
+      line-height: 1.6;
+    }
+    img, svg { display: block; max-width: 100%; }
+    button, textarea { font: inherit; color: inherit; }
+    button {
+      background: none;
+      border: 0;
+      cursor: pointer;
+    }
+    textarea {
+      width: 100%;
+      border: 0;
+      resize: none;
+      background: transparent;
+    }
+    :focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
+    ::selection {
+      background: var(--color-primary-soft);
+      color: var(--color-text);
+    }
+
+    .skip-link {
+      position: absolute;
+      top: -3rem;
+      left: var(--space-4);
+      z-index: 20;
+      padding: var(--space-2) var(--space-3);
+      border-radius: 999px;
+      background: var(--color-primary);
+      color: #fff;
+      text-decoration: none;
+      transition: top var(--transition);
+    }
+    .skip-link:focus { top: var(--space-4); }
+
+    .app {
+      width: min(1120px, calc(100% - 1.5rem));
+      margin: 0 auto;
+      padding: var(--space-4) 0 var(--space-10);
+    }
+
+    .workspace-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      min-height: 3.5rem;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      min-width: 0;
+    }
+    .brand-mark {
+      width: 1.9rem;
+      height: 1.9rem;
+      border-radius: 0.55rem;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      box-shadow: var(--shadow-sm);
+    }
+    .brand-mark svg { width: 0.95rem; height: 0.95rem; }
+    .brand-copy strong {
+      display: block;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.05;
+    }
+    .brand-copy span {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--color-text-muted);
+      line-height: 1.15;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .workspace-meta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-3);
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .mode-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.18rem;
+      border: 1px solid var(--color-border);
+      border-radius: 999px;
+      background: var(--color-surface);
+      box-shadow: var(--shadow-sm);
+    }
+    .mode-btn {
+      min-height: 2.15rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      transition: background var(--transition), color var(--transition);
+    }
+    .mode-btn.active {
+      background: var(--color-text);
+      color: var(--color-surface);
+    }
+
+    .icon-btn {
+      min-width: 2.15rem;
+      min-height: 2.15rem;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 999px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      box-shadow: var(--shadow-sm);
+      transition: border-color var(--transition), transform var(--transition);
+    }
+    .icon-btn svg { width: 0.92rem; height: 0.92rem; }
+    .text-btn {
+      min-height: 2.15rem;
+      padding: 0.45rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      box-shadow: var(--shadow-sm);
+      color: var(--color-text-muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: border-color var(--transition), color var(--transition), transform var(--transition);
+    }
+    .icon-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--color-border-strong);
+    }
+    .text-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--color-border-strong);
+      color: var(--color-text);
+    }
+
+    .meta-strip {
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+      justify-content: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .meta-strip span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 1.95rem;
+      padding: 0.32rem 0.68rem;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+      background: color-mix(in srgb, var(--color-primary-soft) 70%, var(--color-surface));
+      color: var(--color-primary);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      box-shadow: none;
+    }
+
+    .surface {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      background: var(--color-surface);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+
+    .edit-surface {
+      display: none;
+    }
+    .mode-edit .edit-surface {
+      display: block;
+    }
+    .mode-edit .preview-surface {
+      display: none;
+    }
+
+    .mode-stat {
+      display: none;
+    }
+    .mode-edit .mode-stat.edit-only,
+    .mode-preview .mode-stat.preview-only {
+      display: inline-flex;
+    }
+
+    .editor {
+      min-height: 68vh;
+      padding: var(--space-5);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+      line-height: 1.75;
+      font-size: 0.96rem;
+      caret-color: var(--color-primary);
+    }
+    .editor::placeholder { color: var(--color-text-faint); }
+
+    .preview-shell {
+      padding: var(--space-6) clamp(1rem, 3vw, 3rem);
+      min-height: 68vh;
+      background: var(--color-surface);
+    }
+    .preview-doc {
+      max-width: 720px;
+      margin: 0 auto;
+      font-family: var(--font-prose);
+      font-size: clamp(1.0625rem, 1rem + 0.25vw, 1.125rem);
+      line-height: 1.75;
+    }
+
+    .preview-block {
+      position: relative;
+      margin: 0 0 var(--space-2);
+      border-radius: var(--radius-md);
+      transition: background var(--transition), box-shadow var(--transition);
+    }
+    .preview-block:hover {
+      background: var(--color-primary-soft);
+      box-shadow: inset 0 0 0 1px rgba(26, 137, 23, 0.08);
+    }
+    .preview-block-content {
+      padding: 0.35rem 0.5rem;
+      border-radius: inherit;
+    }
+    .preview-block.is-editing {
+      background: var(--color-surface-2);
+      box-shadow: inset 0 0 0 1px var(--color-border-strong);
+    }
+    .preview-block.is-editing:hover { background: var(--color-surface-2); }
+    .preview-block-edit {
+      padding: 0.5rem;
+    }
+    .block-editor {
+      min-height: 6rem;
+      padding: 0;
+      line-height: 1.7;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.95rem;
+      caret-color: var(--color-primary);
+    }
+    .block-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-3);
+      margin-top: var(--space-3);
+      color: var(--color-text-muted);
+      font-size: var(--text-xs);
+      font-family: var(--font-ui);
+    }
+    .block-actions button {
+      padding: 0.5rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      font-size: var(--text-xs);
+      font-weight: 600;
+    }
+    .block-actions button.primary {
+      background: var(--color-text);
+      color: var(--color-surface);
+      border-color: var(--color-text);
+    }
+
+    .preview-doc h1,
+    .preview-doc h2,
+    .preview-doc h3,
+    .preview-doc h4,
+    .preview-doc h5,
+    .preview-doc h6 {
+      margin: 1.5em 0 0.5em;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      font-family: var(--font-ui);
+      font-weight: 700;
+    }
+    .preview-doc h1 { font-size: clamp(2rem, 1.7rem + 1vw, 2.8rem); }
+    .preview-doc h2 { font-size: clamp(1.5rem, 1.35rem + 0.5vw, 2rem); }
+    .preview-doc h3 { font-size: clamp(1.25rem, 1.15rem + 0.35vw, 1.5rem); }
+    .preview-doc p,
+    .preview-doc ul,
+    .preview-doc ol,
+    .preview-doc pre,
+    .preview-doc table,
+    .preview-doc blockquote,
+    .preview-doc hr { margin: 0 0 1.2rem; }
+    .preview-doc ul,
+    .preview-doc ol { padding-left: 1.4rem; }
+    .preview-doc a {
+      color: var(--color-primary);
+      text-decoration-thickness: 0.08em;
+      text-underline-offset: 0.16em;
+    }
+    .preview-doc code {
+      padding: 0.08rem 0.28rem;
+      border-radius: 0.35rem;
+      background: var(--color-code-bg);
+      font-size: 0.92em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    .preview-doc pre {
+      overflow: auto;
+      padding: 1rem 1.05rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      background: var(--color-code-bg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+    .preview-doc pre code {
+      padding: 0;
+      background: transparent;
+    }
+    .preview-doc blockquote {
+      padding-left: 1rem;
+      border-left: 3px solid var(--color-border-strong);
+      color: var(--color-text-muted);
+    }
+    .preview-doc hr {
+      border: 0;
+      border-top: 1px solid var(--color-border);
+    }
+    .preview-doc table {
+      display: block;
+      overflow-x: auto;
+      border-collapse: collapse;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: var(--color-surface);
+    }
+    .preview-doc th,
+    .preview-doc td {
+      padding: 0.8rem 0.9rem;
+      border-bottom: 1px solid var(--color-border);
+      text-align: left;
+      font-family: var(--font-ui);
+      font-size: 0.92rem;
+    }
+    .preview-doc th {
+      color: var(--color-text-muted);
+      font-weight: 600;
+    }
+
+    .preview-empty {
+      max-width: 30ch;
+      margin: 0 auto;
+      padding: var(--space-10) 0;
+      text-align: center;
+      color: var(--color-text-muted);
+      font-family: var(--font-ui);
+    }
+
+    .statusbar {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-4);
+      flex-wrap: wrap;
+      padding: var(--space-3) var(--space-5);
+      border-top: 1px solid var(--color-border);
+      color: var(--color-text-muted);
+      font-size: var(--text-xs);
+      font-variant-numeric: tabular-nums;
+      background: var(--color-surface-2);
+    }
+
+    @media (max-width: 820px) {
+      .workspace-bar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: var(--space-3);
+        min-height: auto;
+      }
+      .workspace-meta {
+        justify-content: flex-start;
+      }
+      .meta-strip { justify-content: flex-start; }
+      .toolbar { justify-content: space-between; }
+      .preview-shell { padding-inline: 1rem; }
+    }
+
+    @media (max-width: 560px) {
+      .meta-strip {
+        gap: var(--space-2);
+      }
+      .meta-strip span {
+        min-height: 1.9rem;
+        padding: 0.3rem 0.65rem;
+      }
+      .brand-copy span {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <div class="app mode-edit" id="app">
+    <main id="main">
+      <section class="surface workspace-shell" aria-label="Markdown workspace">
+        <div class="workspace-bar">
+          <div>
+            <div class="brand">
+              <div class="brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 5.5h7.25c1.8 0 3 1.16 3 2.8s-1.2 2.7-3 2.7H6z"></path>
+                  <path d="M6 11h8.2c2.12 0 3.55 1.2 3.55 2.88S16.32 16.8 14.2 16.8H6z"></path>
+                  <path d="M6 4v13.8"></path>
+                </svg>
+              </div>
+              <div class="brand-copy">
+                <strong>x markdown</strong>
+                <span>Extremely simple markdown editor.</span>
+              </div>
+            </div>
+          </div>
+          <div class="workspace-meta" aria-label="Document statistics">
+            <div class="meta-strip">
+              <span id="wordCount">0 words</span>
+              <span id="charCount">0 characters</span>
+              <span id="readTime">0 min read</span>
+              <span id="lineCount" class="mode-stat edit-only">0 lines</span>
+              <span id="headingCount" class="mode-stat preview-only">0 headings</span>
+            </div>
+          </div>
+          <div class="toolbar">
+            <div class="mode-switch" role="tablist" aria-label="Modes">
+              <button class="mode-btn active" id="editModeBtn" role="tab" aria-selected="true" type="button">Edit</button>
+              <button class="mode-btn" id="previewModeBtn" role="tab" aria-selected="false" type="button">Preview</button>
+            </div>
+            <button class="icon-btn" id="copyBtn" type="button" aria-label="Copy markdown">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a2 2 0 0 1 2-2h9"></path></svg>
+            </button>
+            <button class="text-btn" id="clearBtn" type="button">Clear</button>
+            <button class="icon-btn" id="themeToggle" type="button" aria-label="Switch theme">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
+          </div>
+        </div>
+        <section class="edit-surface" aria-label="Markdown editor">
+          <textarea id="editor" class="editor" spellcheck="false" aria-label="Markdown document editor"></textarea>
+          <div class="statusbar">
+            <span>Tab to indent inside code blocks as usual in your browser.</span>
+            <span id="cursorMeta">Line 1, column 1</span>
+          </div>
+        </section>
+
+        <section class="preview-surface" aria-label="Markdown preview">
+          <div class="preview-shell">
+            <div id="previewDoc" class="preview-doc" aria-live="polite"></div>
+            <div id="previewEmpty" class="preview-empty" hidden>
+              Start writing in Edit mode and the preview will appear here.
+            </div>
+          </div>
+          <div class="statusbar">
+            <span>Enter inline edit: click a block.</span>
+            <span>Save: Cmd/Ctrl + Enter. Cancel: Escape.</span>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const app = document.getElementById('app');
+    const editor = document.getElementById('editor');
+    const previewDoc = document.getElementById('previewDoc');
+    const previewEmpty = document.getElementById('previewEmpty');
+    const editModeBtn = document.getElementById('editModeBtn');
+    const previewModeBtn = document.getElementById('previewModeBtn');
+    const wordCount = document.getElementById('wordCount');
+    const charCount = document.getElementById('charCount');
+    const readTime = document.getElementById('readTime');
+    const lineCount = document.getElementById('lineCount');
+    const headingCount = document.getElementById('headingCount');
+    const cursorMeta = document.getElementById('cursorMeta');
+    const copyBtn = document.getElementById('copyBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const themeToggle = document.getElementById('themeToggle');
+    const STORAGE_KEY = 'x-markdown-content';
+
+    const starterMarkdown = `# A quieter markdown editor
+
+This rebuild keeps the interface simpler and closer to a clean publishing surface.
+
+## Preview mode edits inline
+
+Click a paragraph, heading, list, table, quote, or code block in preview mode to edit the markdown for that block in place.
+
+- Edit mode stays focused on the raw document.
+- Preview mode feels like one reading surface.
+- Both modes update the same markdown source.
+
+> The goal is to keep the markdown clean while reducing interface clutter.
+
+### Example code
+
+\`\`\`js
+const state = { mode: 'preview', editing: null };
+console.log(state.mode);
+\`\`\`
+`;
+
+    const state = {
+      markdown: localStorage.getItem(STORAGE_KEY) ?? starterMarkdown,
+      mode: 'edit',
+      theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+      activeBlock: null,
+      themeLocked: false
+    };
+
+    document.documentElement.setAttribute('data-theme', state.theme);
+
+    function updateThemeIcon() {
+      const dark = state.theme === 'dark';
+      themeToggle.innerHTML = dark
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2"></path><path d="M12 21v2"></path><path d="M4.22 4.22l1.42 1.42"></path><path d="M18.36 18.36l1.42 1.42"></path><path d="M1 12h2"></path><path d="M21 12h2"></path><path d="M4.22 19.78l1.42-1.42"></path><path d="M18.36 5.64l1.42-1.42"></path></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+      themeToggle.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
+    }
+
+    function persistMarkdown() {
+      localStorage.setItem(STORAGE_KEY, state.markdown);
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      app.classList.toggle('mode-edit', mode === 'edit');
+      app.classList.toggle('mode-preview', mode === 'preview');
+      editModeBtn.classList.toggle('active', mode === 'edit');
+      previewModeBtn.classList.toggle('active', mode === 'preview');
+      editModeBtn.setAttribute('aria-selected', String(mode === 'edit'));
+      previewModeBtn.setAttribute('aria-selected', String(mode === 'preview'));
+      if (mode === 'edit') {
+        state.activeBlock = null;
+        editor.focus();
+      }
+    }
+
+    function getBlocks(markdown) {
+      if (!window.marked) return [];
+      const tokens = marked.lexer(markdown || '', { gfm: true, breaks: true });
+      return tokens.filter((token) => token.type !== 'space').map((token) => ({
+        raw: token.raw || '',
+        html: marked.parser([token])
+      }));
+    }
+
+    function sanitize(html) {
+      return window.DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+    }
+
+    function buildMarkdownFromBlocks(blocks) {
+      return blocks.map((block) => block.raw.trimEnd()).join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function getStats(markdown) {
+      const trimmed = markdown.trim();
+      const words = trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0;
+      const chars = markdown.length;
+      const lines = markdown ? markdown.split('\n').length : 0;
+      const headings = (markdown.match(/^#{1,6}\s/gm) || []).length;
+      const minutes = words ? Math.max(1, Math.ceil(words / 220)) : 0;
+      return { words, chars, lines, headings, minutes };
+    }
+
+    function updateStats() {
+      const stats = getStats(state.markdown);
+      wordCount.textContent = `${stats.words} words`;
+      charCount.textContent = `${stats.chars} characters`;
+      readTime.textContent = `${stats.minutes} min read`;
+      lineCount.textContent = `${stats.lines} lines`;
+      headingCount.textContent = `${stats.headings} headings`;
+    }
+
+    function updateCursorMeta() {
+      const cursor = editor.selectionStart || 0;
+      const before = editor.value.slice(0, cursor);
+      const line = before.split('\n').length;
+      const column = before.length - before.lastIndexOf('\n');
+      cursorMeta.textContent = `Line ${line}, column ${column}`;
+    }
+
+    function renderPreview() {
+      const blocks = getBlocks(state.markdown);
+      previewDoc.innerHTML = '';
+      previewEmpty.hidden = blocks.length > 0;
+      previewDoc.hidden = blocks.length === 0;
+
+      blocks.forEach((block, index) => {
+        const wrapper = document.createElement('section');
+        wrapper.className = 'preview-block';
+        wrapper.dataset.index = String(index);
+        wrapper.setAttribute('tabindex', '0');
+        wrapper.setAttribute('role', 'button');
+        wrapper.setAttribute('aria-label', 'Edit markdown block');
+
+        if (state.activeBlock === index) {
+          wrapper.classList.add('is-editing');
+          const editBox = document.createElement('div');
+          editBox.className = 'preview-block-edit';
+          editBox.innerHTML = `
+            <textarea class="block-editor" aria-label="Inline markdown block editor"></textarea>
+            <div class="block-actions">
+              <span>Editing block ${index + 1}</span>
+              <div>
+                <button type="button" data-action="cancel">Cancel</button>
+                <button type="button" class="primary" data-action="save">Save</button>
+              </div>
+            </div>
+          `;
+          const textarea = editBox.querySelector('textarea');
+          textarea.value = block.raw.trimEnd();
+          wrapper.appendChild(editBox);
+          previewDoc.appendChild(wrapper);
+          requestAnimationFrame(() => {
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+            textarea.style.height = 'auto';
+            textarea.style.height = `${Math.max(96, textarea.scrollHeight)}px`;
+          });
+          return;
+        }
+
+        const content = document.createElement('div');
+        content.className = 'preview-block-content';
+        content.innerHTML = sanitize(block.html);
+        wrapper.appendChild(content);
+        previewDoc.appendChild(wrapper);
+      });
+    }
+
+    function renderAll() {
+      editor.value = state.markdown;
+      updateStats();
+      updateCursorMeta();
+      renderPreview();
+    }
+
+    function saveActiveBlock(nextRaw) {
+      const blocks = getBlocks(state.markdown);
+      if (state.activeBlock === null || !blocks[state.activeBlock]) return;
+      blocks[state.activeBlock].raw = nextRaw.trimEnd();
+      state.markdown = buildMarkdownFromBlocks(blocks);
+      persistMarkdown();
+      state.activeBlock = null;
+      renderAll();
+    }
+
+    function cancelActiveBlock() {
+      state.activeBlock = null;
+      renderPreview();
+    }
+
+    editor.addEventListener('input', () => {
+      state.markdown = editor.value;
+      persistMarkdown();
+      updateStats();
+      updateCursorMeta();
+      if (state.mode === 'preview') renderPreview();
+    });
+
+    editor.addEventListener('keyup', updateCursorMeta);
+    editor.addEventListener('click', updateCursorMeta);
+
+    editModeBtn.addEventListener('click', () => setMode('edit'));
+    previewModeBtn.addEventListener('click', () => {
+      setMode('preview');
+      renderPreview();
+    });
+
+    previewDoc.addEventListener('click', (event) => {
+      const saveButton = event.target.closest('[data-action="save"]');
+      if (saveButton) {
+        const blockEl = event.target.closest('.preview-block');
+        const textarea = blockEl.querySelector('.block-editor');
+        saveActiveBlock(textarea.value);
+        return;
+      }
+
+      const cancelButton = event.target.closest('[data-action="cancel"]');
+      if (cancelButton) {
+        cancelActiveBlock();
+        return;
+      }
+
+      const blockEl = event.target.closest('.preview-block');
+      if (!blockEl) return;
+      const index = Number(blockEl.dataset.index);
+      if (Number.isNaN(index) || state.activeBlock === index) return;
+      state.activeBlock = index;
+      renderPreview();
+    });
+
+    previewDoc.addEventListener('keydown', (event) => {
+      const blockEl = event.target.closest('.preview-block');
+      if (!blockEl) return;
+
+      if ((event.key === 'Enter' || event.key === ' ') && !event.target.matches('textarea,button')) {
+        event.preventDefault();
+        const index = Number(blockEl.dataset.index);
+        if (!Number.isNaN(index)) {
+          state.activeBlock = index;
+          renderPreview();
+        }
+      }
+
+      if (event.target.matches('.block-editor')) {
+        const textarea = event.target;
+        textarea.style.height = 'auto';
+        textarea.style.height = `${Math.max(96, textarea.scrollHeight)}px`;
+
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+          event.preventDefault();
+          saveActiveBlock(textarea.value);
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          cancelActiveBlock();
+        }
+      }
+    });
+
+    previewDoc.addEventListener('input', (event) => {
+      if (event.target.matches('.block-editor')) {
+        event.target.style.height = 'auto';
+        event.target.style.height = `${Math.max(96, event.target.scrollHeight)}px`;
+      }
+    });
+
+    previewDoc.addEventListener('focusout', (event) => {
+      const activeEditor = event.target.closest('.preview-block');
+      if (!activeEditor || state.activeBlock === null) return;
+      const nextFocused = event.relatedTarget;
+      if (nextFocused && activeEditor.contains(nextFocused)) return;
+      const textarea = activeEditor.querySelector('.block-editor');
+      if (textarea) saveActiveBlock(textarea.value);
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(state.markdown);
+        const previous = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>';
+        setTimeout(() => { copyBtn.innerHTML = previous; }, 1200);
+      } catch (error) {
+        copyBtn.setAttribute('aria-label', 'Clipboard unavailable');
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      if (!window.confirm('Clear the entire markdown document?')) return;
+      state.markdown = '';
+      state.activeBlock = null;
+      persistMarkdown();
+      renderAll();
+      setMode('edit');
+    });
+
+    themeToggle.addEventListener('click', () => {
+      state.themeLocked = true;
+      state.theme = state.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', state.theme);
+      updateThemeIcon();
+    });
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
+      if (state.themeLocked) return;
+      state.theme = event.matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', state.theme);
+      updateThemeIcon();
+    });
+
+    marked.setOptions({ gfm: true, breaks: true, headerIds: false, mangle: false });
+    updateThemeIcon();
+    renderAll();
+    setMode('edit');
+  </script>
+</body>
+</html>
