@@ -258,6 +258,7 @@
       min-height: calc(100vh - (var(--space-6) * 2));
       display: flex;
       flex-direction: column;
+      overflow: visible;
     }
 
     .edit-surface {
@@ -301,6 +302,40 @@
       background: var(--color-surface-2);
     }
 
+    .scroll-top-btn {
+      position: fixed;
+      right: 1rem;
+      bottom: 1rem;
+      z-index: 30;
+      min-width: 2.4rem;
+      min-height: 2.4rem;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-pill);
+      background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+      box-shadow: var(--shadow-md);
+      color: var(--color-text);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(0.5rem);
+      transition: opacity var(--transition), transform var(--transition), border-color var(--transition);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .scroll-top-btn.is-visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .scroll-top-btn:hover {
+      border-color: var(--color-border-strong);
+    }
+    .scroll-top-btn svg {
+      width: 1rem;
+      height: 1rem;
+    }
+
     .workspace-footer-meta {
       justify-content: flex-start;
     }
@@ -323,6 +358,9 @@
       caret-color: var(--color-primary);
     }
     .editor::placeholder { color: var(--color-text-faint); }
+    .editor:focus-visible {
+      outline: none;
+    }
 
     .preview-shell {
       flex: 1 1 auto;
@@ -351,6 +389,124 @@
     .preview-block-content {
       padding: 0.35rem 0.5rem;
       border-radius: inherit;
+    }
+    .preview-insert-trigger {
+      position: absolute;
+      left: 0.75rem;
+      right: 0.75rem;
+      bottom: -0.2rem;
+      height: 1.35rem;
+      z-index: 1;
+    }
+    .preview-insert-anchor {
+      position: absolute;
+      left: 0.75rem;
+      right: 0.75rem;
+      bottom: 0;
+      z-index: 15;
+      opacity: 0;
+      display: block;
+      transform: translateY(45%);
+      pointer-events: none;
+      transition: opacity var(--transition), transform var(--transition);
+    }
+    .preview-insert-trigger:hover + .preview-insert-anchor,
+    .preview-insert-anchor:hover,
+    .preview-insert-anchor:focus-within,
+    .preview-block.has-insert-menu .preview-insert-anchor {
+      opacity: 1;
+      transform: translateY(50%);
+      pointer-events: auto;
+    }
+    .preview-insert-hitbox {
+      width: 100%;
+      min-height: 1.5rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--color-primary-soft) 55%, transparent) 100%);
+    }
+    .preview-insert-btn {
+      width: 100%;
+      min-height: 1.35rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 0;
+      border-radius: var(--radius-pill);
+      background: transparent;
+      box-shadow: none;
+      color: var(--color-text-muted);
+    }
+    .preview-insert-trigger:hover + .preview-insert-anchor .preview-insert-hitbox,
+    .preview-insert-anchor:hover .preview-insert-hitbox,
+    .preview-insert-anchor:focus-within .preview-insert-hitbox,
+    .preview-block.has-insert-menu .preview-insert-hitbox {
+      background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--color-primary-soft) 80%, transparent) 100%);
+    }
+    .preview-insert-btn:hover {
+      color: var(--color-text);
+    }
+    .preview-insert-btn::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 2px;
+      background: color-mix(in srgb, var(--color-primary) 46%, var(--color-border));
+      transform: translateY(-50%);
+    }
+    .preview-insert-btn::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1.7rem;
+      height: 1.05rem;
+      border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+      border-radius: 999px;
+      background: var(--color-surface);
+      transform: translate(-50%, -50%);
+    }
+    .preview-insert-btn svg {
+      width: 0.9rem;
+      height: 0.9rem;
+      position: relative;
+      z-index: 1;
+    }
+    .preview-insert-menu {
+      position: absolute;
+      left: var(--insert-menu-x, 50%);
+      bottom: calc(100% + 0.45rem);
+      transform: translateX(-50%);
+      z-index: 16;
+      min-width: 8rem;
+      padding: 0.35rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-surface);
+      box-shadow: var(--shadow-md);
+    }
+    .preview-insert-menu.is-below {
+      top: calc(100% + 0.45rem);
+      bottom: auto;
+    }
+    .preview-insert-menu button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0.55rem 0.65rem;
+      border-radius: calc(var(--radius-md) - 0.15rem);
+      color: var(--color-text);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      text-align: left;
+    }
+    .preview-insert-menu button:hover {
+      background: var(--color-surface-2);
     }
     .preview-block.is-editing {
       background: var(--color-surface-2);
@@ -596,6 +752,12 @@
     </main>
   </div>
 
+  <button class="scroll-top-btn" id="scrollTopBtn" type="button" aria-label="Scroll to top">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 15l-6-6-6 6"></path>
+    </svg>
+  </button>
+
   <script>
     const app = document.getElementById('app');
     const editor = document.getElementById('editor');
@@ -611,6 +773,7 @@
     const cursorMeta = document.getElementById('cursorMeta');
     const copyBtn = document.getElementById('copyBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const scrollTopBtn = document.getElementById('scrollTopBtn');
     const themeToggle = document.getElementById('themeToggle');
     const STORAGE_KEY = 'x-markdown-content';
     const MODE_KEY = 'x-markdown-mode';
@@ -645,6 +808,9 @@ console.log(state.mode);
       mode: savedMode === 'preview' ? 'preview' : 'edit',
       theme: savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
       activeBlock: null,
+      insertMenuBlock: null,
+      insertMenuX: '50%',
+      insertMenuPlacement: 'above',
       themeLocked: Boolean(savedTheme)
     };
 
@@ -696,6 +862,9 @@ console.log(state.mode);
 
     function setMode(mode) {
       state.mode = mode;
+      state.insertMenuBlock = null;
+      state.insertMenuX = '50%';
+      state.insertMenuPlacement = 'above';
       persistMode();
       app.classList.toggle('mode-edit', mode === 'edit');
       app.classList.toggle('mode-preview', mode === 'preview');
@@ -707,7 +876,10 @@ console.log(state.mode);
         state.activeBlock = null;
         syncEditorFromState();
         editor.focus();
+        editor.setSelectionRange(0, 0);
+        editor.scrollTop = 0;
       }
+      updateScrollTopButton();
     }
 
     function getBlocks(markdown) {
@@ -724,7 +896,37 @@ console.log(state.mode);
     }
 
     function buildMarkdownFromBlocks(blocks) {
-      return blocks.map((block) => block.raw.trimEnd()).join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
+      return blocks.map((block) => block.raw.replace(/\n+$/g, '')).join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function getEditableBlockRaw(raw) {
+      return raw.replace(/\n+$/g, '');
+    }
+
+    function insertBlock(afterIndex, raw) {
+      const blocks = getBlocks(state.markdown);
+      const nextIndex = Math.max(0, Math.min(blocks.length, afterIndex + 1));
+      blocks.splice(nextIndex, 0, { raw, html: '' });
+      state.markdown = buildMarkdownFromBlocks(blocks);
+      persistMarkdown();
+      state.insertMenuBlock = null;
+      state.insertMenuX = '50%';
+      state.insertMenuPlacement = 'above';
+      state.activeBlock = nextIndex;
+      renderAll();
+    }
+
+    function insertHeadingBlock(afterIndex, level = 2) {
+      const safeLevel = Math.max(1, Math.min(4, level));
+      insertBlock(afterIndex, `${'#'.repeat(safeLevel)} `);
+    }
+
+    function insertBlockQuote(afterIndex) {
+      insertBlock(afterIndex, '> ');
+    }
+
+    function insertOrderedList(afterIndex) {
+      insertBlock(afterIndex, '1. ');
     }
 
     function getStats(markdown) {
@@ -752,6 +954,38 @@ console.log(state.mode);
       const line = before.split('\n').length;
       const column = before.length - before.lastIndexOf('\n');
       cursorMeta.textContent = `Line ${line}, column ${column}`;
+    }
+
+    function updateScrollTopButton() {
+      const offset = state.mode === 'edit'
+        ? editor.scrollTop
+        : (window.scrollY || document.documentElement.scrollTop || 0);
+      scrollTopBtn.classList.toggle('is-visible', offset > 320);
+    }
+
+    function smoothScrollEditorToTop() {
+      const start = editor.scrollTop;
+      if (start <= 0) return;
+
+      const duration = 220;
+      const startTime = performance.now();
+
+      function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        editor.scrollTop = Math.round(start * (1 - eased));
+        updateScrollTopButton();
+
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        } else {
+          editor.scrollTop = 0;
+          updateScrollTopButton();
+        }
+      }
+
+      requestAnimationFrame(step);
     }
 
     function renderPreview() {
@@ -783,7 +1017,7 @@ console.log(state.mode);
             </div>
           `;
           const textarea = editBox.querySelector('textarea');
-          textarea.value = block.raw.trimEnd();
+          textarea.value = getEditableBlockRaw(block.raw);
           wrapper.appendChild(editBox);
           previewDoc.appendChild(wrapper);
           requestAnimationFrame(() => {
@@ -799,6 +1033,44 @@ console.log(state.mode);
         content.className = 'preview-block-content';
         content.innerHTML = sanitize(block.html);
         wrapper.appendChild(content);
+
+        const insertTrigger = document.createElement('div');
+        insertTrigger.className = 'preview-insert-trigger';
+        wrapper.appendChild(insertTrigger);
+
+        const insertAnchor = document.createElement('div');
+        insertAnchor.className = 'preview-insert-anchor';
+        insertAnchor.innerHTML = `
+          <div class="preview-insert-hitbox">
+            <button class="preview-insert-btn" type="button" data-action="toggle-insert-menu" aria-label="Add block below">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5v14"></path>
+                <path d="M5 12h14"></path>
+              </svg>
+            </button>
+          </div>
+        `;
+
+        if (state.insertMenuBlock === index) {
+          wrapper.classList.add('has-insert-menu');
+          const menu = document.createElement('div');
+          menu.className = 'preview-insert-menu';
+          if (state.insertMenuPlacement === 'below') {
+            menu.classList.add('is-below');
+          }
+          menu.style.setProperty('--insert-menu-x', state.insertMenuX);
+          menu.innerHTML = `
+            <button type="button" data-action="insert-heading" data-level="1">Heading 1</button>
+            <button type="button" data-action="insert-heading" data-level="2">Heading 2</button>
+            <button type="button" data-action="insert-heading" data-level="3">Heading 3</button>
+            <button type="button" data-action="insert-heading" data-level="4">Heading 4</button>
+            <button type="button" data-action="insert-blockquote">Block quote</button>
+            <button type="button" data-action="insert-ordered-list">Ordered list</button>
+          `;
+          insertAnchor.appendChild(menu);
+        }
+
+        wrapper.appendChild(insertAnchor);
         previewDoc.appendChild(wrapper);
       });
     }
@@ -821,6 +1093,9 @@ console.log(state.mode);
 
     function cancelActiveBlock() {
       state.activeBlock = null;
+      state.insertMenuBlock = null;
+      state.insertMenuX = '50%';
+      state.insertMenuPlacement = 'above';
       renderPreview();
     }
 
@@ -834,6 +1109,7 @@ console.log(state.mode);
 
     editor.addEventListener('keyup', updateCursorMeta);
     editor.addEventListener('click', updateCursorMeta);
+    editor.addEventListener('scroll', updateScrollTopButton, { passive: true });
 
     editModeBtn.addEventListener('click', () => setMode('edit'));
     previewModeBtn.addEventListener('click', () => {
@@ -850,6 +1126,53 @@ console.log(state.mode);
         return;
       }
 
+      const insertMenuToggle = event.target.closest('[data-action="toggle-insert-menu"]');
+      if (insertMenuToggle) {
+        const blockEl = event.target.closest('.preview-block');
+        const index = Number(blockEl.dataset.index);
+        const blockRect = blockEl.getBoundingClientRect();
+        const rawX = event.clientX - blockRect.left;
+        const clampedX = Math.max(72, Math.min(blockRect.width - 72, rawX));
+        const estimatedMenuHeight = 172;
+        const gap = 10;
+        const spaceAbove = blockRect.bottom - gap;
+        const spaceBelow = window.innerHeight - blockRect.bottom - gap;
+        state.insertMenuX = `${(clampedX / blockRect.width) * 100}%`;
+        state.insertMenuPlacement = spaceAbove >= estimatedMenuHeight || spaceAbove >= spaceBelow ? 'above' : 'below';
+        state.insertMenuBlock = state.insertMenuBlock === index ? null : index;
+        if (state.insertMenuBlock === null) {
+          state.insertMenuX = '50%';
+          state.insertMenuPlacement = 'above';
+        }
+        renderPreview();
+        return;
+      }
+
+      const insertHeadingButton = event.target.closest('[data-action="insert-heading"]');
+      if (insertHeadingButton) {
+        const blockEl = event.target.closest('.preview-block');
+        const index = Number(blockEl.dataset.index);
+        const level = Number(insertHeadingButton.dataset.level || '2');
+        if (!Number.isNaN(index)) insertHeadingBlock(index, level);
+        return;
+      }
+
+      const insertBlockQuoteButton = event.target.closest('[data-action="insert-blockquote"]');
+      if (insertBlockQuoteButton) {
+        const blockEl = event.target.closest('.preview-block');
+        const index = Number(blockEl.dataset.index);
+        if (!Number.isNaN(index)) insertBlockQuote(index);
+        return;
+      }
+
+      const insertOrderedListButton = event.target.closest('[data-action="insert-ordered-list"]');
+      if (insertOrderedListButton) {
+        const blockEl = event.target.closest('.preview-block');
+        const index = Number(blockEl.dataset.index);
+        if (!Number.isNaN(index)) insertOrderedList(index);
+        return;
+      }
+
       const cancelButton = event.target.closest('[data-action="cancel"]');
       if (cancelButton) {
         cancelActiveBlock();
@@ -857,9 +1180,18 @@ console.log(state.mode);
       }
 
       const blockEl = event.target.closest('.preview-block');
-      if (!blockEl) return;
+      if (!blockEl) {
+        if (state.insertMenuBlock !== null) {
+          state.insertMenuBlock = null;
+          state.insertMenuX = '50%';
+          state.insertMenuPlacement = 'above';
+          renderPreview();
+        }
+        return;
+      }
       const index = Number(blockEl.dataset.index);
       if (Number.isNaN(index) || state.activeBlock === index) return;
+      state.insertMenuBlock = null;
       state.activeBlock = index;
       renderPreview();
     });
@@ -929,6 +1261,14 @@ console.log(state.mode);
       setMode('edit');
     });
 
+    scrollTopBtn.addEventListener('click', () => {
+      if (state.mode === 'edit') {
+        smoothScrollEditorToTop();
+        return;
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
     themeToggle.addEventListener('click', () => {
       state.themeLocked = true;
       state.theme = state.theme === 'dark' ? 'light' : 'dark';
@@ -947,6 +1287,8 @@ console.log(state.mode);
     startAppWhenReady();
     window.addEventListener('load', startAppWhenReady);
     window.addEventListener('pageshow', startAppWhenReady);
+    window.addEventListener('scroll', updateScrollTopButton, { passive: true });
+    updateScrollTopButton();
   </script>
 </body>
 </html>

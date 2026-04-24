@@ -1,6 +1,6 @@
-# X Markdown
+# XMD Markdown Editor
 
-X Markdown is a single-page static markdown editor.
+X Markdown is probably the most simple markdown editor out there.
 
 It provides:
 
@@ -12,9 +12,9 @@ It provides:
 
 ## Demo
 
-Live Demo: `https://saneeshnp.github.io/xmd-markdown-editor/`
+Live Demo: [XMD Markdown Editor](https://saneeshnp.github.io/xmd-markdown-editor/)
 
 ## Usage
 
-Open `index.html` in a browser to use the editor locally. Or just use the demo URL. Bookmark and forget, use it whenever you need a markdown clipboard.
+Open `index.html` in a browser to use the editor locally. Or just use the demo URL. Bookmark and forget, use it whenever you need few quick markdown edits.
 
