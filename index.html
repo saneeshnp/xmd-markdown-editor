@@ -508,6 +508,43 @@
     .preview-insert-menu button:hover {
       background: var(--color-surface-2);
     }
+    .preview-insert-row {
+      position: relative;
+    }
+    .preview-insert-submenu {
+      position: absolute;
+      left: 100%;
+      top: -0.4rem;
+      margin-left: 0.4rem;
+      min-width: 9rem;
+      padding: 0.35rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      background: var(--color-surface);
+      box-shadow: var(--shadow-md);
+      z-index: 17;
+    }
+    .preview-insert-submenu.flip-left {
+      left: auto;
+      right: 100%;
+      margin-left: 0;
+      margin-right: 0.4rem;
+    }
+    .preview-insert-submenu button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0.55rem 0.65rem;
+      border-radius: calc(var(--radius-md) - 0.15rem);
+      color: var(--color-text);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      text-align: left;
+    }
+    .preview-insert-submenu button:hover {
+      background: var(--color-surface-2);
+    }
     .preview-block.is-editing {
       background: var(--color-surface-2);
       box-shadow: inset 0 0 0 1px var(--color-border-strong);
@@ -572,6 +609,16 @@
     .preview-doc hr { margin: 0 0 1.2rem; }
     .preview-doc ul,
     .preview-doc ol { padding-left: 1.4rem; }
+    .preview-doc li.task-list-item,
+    .preview-doc li:has(> input[type="checkbox"]),
+    .preview-doc li:has(> p > input[type="checkbox"]:first-child) {
+      list-style: none;
+      margin-left: -1.4rem;
+    }
+    .preview-doc li input[type="checkbox"] {
+      margin-right: 0.45em;
+      vertical-align: middle;
+    }
     .preview-doc a {
       color: var(--color-primary);
       text-decoration-thickness: 0.08em;
@@ -811,10 +858,19 @@ console.log(state.mode);
       insertMenuBlock: null,
       insertMenuX: '50%',
       insertMenuPlacement: 'above',
+      insertSubmenu: null,
       themeLocked: Boolean(savedTheme)
     };
 
     document.documentElement.setAttribute('data-theme', state.theme);
+
+    let submenuHoverTimer = null;
+    function clearSubmenuHoverTimer() {
+      if (submenuHoverTimer) {
+        clearTimeout(submenuHoverTimer);
+        submenuHoverTimer = null;
+      }
+    }
 
     function updateThemeIcon() {
       const dark = state.theme === 'dark';
@@ -865,6 +921,7 @@ console.log(state.mode);
       state.insertMenuBlock = null;
       state.insertMenuX = '50%';
       state.insertMenuPlacement = 'above';
+      state.insertSubmenu = null;
       persistMode();
       app.classList.toggle('mode-edit', mode === 'edit');
       app.classList.toggle('mode-preview', mode === 'preview');
@@ -912,6 +969,7 @@ console.log(state.mode);
       state.insertMenuBlock = null;
       state.insertMenuX = '50%';
       state.insertMenuPlacement = 'above';
+      state.insertSubmenu = null;
       state.activeBlock = nextIndex;
       renderAll();
     }
@@ -927,6 +985,38 @@ console.log(state.mode);
 
     function insertOrderedList(afterIndex) {
       insertBlock(afterIndex, '1. ');
+    }
+
+    function insertUnorderedList(afterIndex) {
+      insertBlock(afterIndex, '- ');
+    }
+
+    function insertTaskList(afterIndex) {
+      insertBlock(afterIndex, '- [ ] Task');
+    }
+
+    function insertParagraph(afterIndex) {
+      insertBlock(afterIndex, '\u00A0');
+    }
+
+    function insertLink(afterIndex) {
+      insertBlock(afterIndex, '[link text](https://example.com)');
+    }
+
+    function insertImage(afterIndex) {
+      insertBlock(afterIndex, '![alt text](https://example.com/image.png)');
+    }
+
+    function insertCodeBlock(afterIndex) {
+      insertBlock(afterIndex, '```\n\n```');
+    }
+
+    function insertDivider(afterIndex) {
+      insertBlock(afterIndex, '---');
+    }
+
+    function insertTable(afterIndex) {
+      insertBlock(afterIndex, '| Column 1 | Column 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |');
     }
 
     function getStats(markdown) {
@@ -1060,14 +1150,86 @@ console.log(state.mode);
           }
           menu.style.setProperty('--insert-menu-x', state.insertMenuX);
           menu.innerHTML = `
-            <button type="button" data-action="insert-heading" data-level="1">Heading 1</button>
-            <button type="button" data-action="insert-heading" data-level="2">Heading 2</button>
-            <button type="button" data-action="insert-heading" data-level="3">Heading 3</button>
-            <button type="button" data-action="insert-heading" data-level="4">Heading 4</button>
+            <button type="button" data-action="insert-paragraph">Paragraph</button>
+            <div class="preview-insert-row" data-submenu-host="headings">
+              <button type="button" data-action="open-submenu" data-submenu="headings">Heading ›</button>
+            </div>
+            <div class="preview-insert-row" data-submenu-host="lists">
+              <button type="button" data-action="open-submenu" data-submenu="lists">List ›</button>
+            </div>
             <button type="button" data-action="insert-blockquote">Block quote</button>
-            <button type="button" data-action="insert-ordered-list">Ordered list</button>
+            <button type="button" data-action="insert-link">Link</button>
+            <button type="button" data-action="insert-image">Image</button>
+            <div class="preview-insert-row" data-submenu-host="embed">
+              <button type="button" data-action="open-submenu" data-submenu="embed">Code &amp; Embed ›</button>
+            </div>
+            <button type="button" data-action="insert-divider">Divider</button>
           `;
+
+          const submenuTemplates = {
+            headings: `
+              <button type="button" data-action="insert-heading" data-level="1">Heading 1</button>
+              <button type="button" data-action="insert-heading" data-level="2">Heading 2</button>
+              <button type="button" data-action="insert-heading" data-level="3">Heading 3</button>
+              <button type="button" data-action="insert-heading" data-level="4">Heading 4</button>
+            `,
+            lists: `
+              <button type="button" data-action="insert-ordered-list">Ordered list</button>
+              <button type="button" data-action="insert-unordered-list">Bulleted list</button>
+              <button type="button" data-action="insert-task-list">Task list</button>
+            `,
+            embed: `
+              <button type="button" data-action="insert-code-block">Code block</button>
+              <button type="button" data-action="insert-table">Table</button>
+            `
+          };
+
+          if (state.insertSubmenu && submenuTemplates[state.insertSubmenu]) {
+            const host = menu.querySelector(`.preview-insert-row[data-submenu-host="${state.insertSubmenu}"]`);
+            if (host) {
+              const submenu = document.createElement('div');
+              submenu.className = 'preview-insert-submenu';
+              submenu.innerHTML = submenuTemplates[state.insertSubmenu];
+              host.appendChild(submenu);
+              requestAnimationFrame(() => {
+                const rect = submenu.getBoundingClientRect();
+                if (rect.right > window.innerWidth - 8) {
+                  submenu.classList.add('flip-left');
+                }
+              });
+            }
+          }
           insertAnchor.appendChild(menu);
+
+          menu.addEventListener('mouseenter', clearSubmenuHoverTimer);
+          menu.addEventListener('mouseleave', () => {
+            clearSubmenuHoverTimer();
+            submenuHoverTimer = setTimeout(() => {
+              if (state.insertSubmenu !== null) {
+                state.insertSubmenu = null;
+                renderPreview();
+              }
+            }, 180);
+          });
+          menu.querySelectorAll('[data-action="open-submenu"]').forEach((trigger) => {
+            const which = trigger.dataset.submenu;
+            trigger.addEventListener('mouseenter', () => {
+              clearSubmenuHoverTimer();
+              if (state.insertSubmenu !== which) {
+                state.insertSubmenu = which;
+                renderPreview();
+              }
+            });
+          });
+          menu.querySelectorAll(':scope > button').forEach((btn) => {
+            btn.addEventListener('mouseenter', () => {
+              clearSubmenuHoverTimer();
+              if (state.insertSubmenu !== null) {
+                state.insertSubmenu = null;
+                renderPreview();
+              }
+            });
+          });
         }
 
         wrapper.appendChild(insertAnchor);
@@ -1096,6 +1258,7 @@ console.log(state.mode);
       state.insertMenuBlock = null;
       state.insertMenuX = '50%';
       state.insertMenuPlacement = 'above';
+      state.insertSubmenu = null;
       renderPreview();
     }
 
@@ -1126,6 +1289,13 @@ console.log(state.mode);
         return;
       }
 
+      const submenuOpen = event.target.closest('[data-action="open-submenu"]');
+      if (submenuOpen) {
+        state.insertSubmenu = submenuOpen.dataset.submenu || null;
+        renderPreview();
+        return;
+      }
+
       const insertMenuToggle = event.target.closest('[data-action="toggle-insert-menu"]');
       if (insertMenuToggle) {
         const blockEl = event.target.closest('.preview-block');
@@ -1140,6 +1310,7 @@ console.log(state.mode);
         state.insertMenuX = `${(clampedX / blockRect.width) * 100}%`;
         state.insertMenuPlacement = spaceAbove >= estimatedMenuHeight || spaceAbove >= spaceBelow ? 'above' : 'below';
         state.insertMenuBlock = state.insertMenuBlock === index ? null : index;
+        state.insertSubmenu = null;
         if (state.insertMenuBlock === null) {
           state.insertMenuX = '50%';
           state.insertMenuPlacement = 'above';
@@ -1173,6 +1344,26 @@ console.log(state.mode);
         return;
       }
 
+      const simpleInserters = {
+        'insert-paragraph': insertParagraph,
+        'insert-unordered-list': insertUnorderedList,
+        'insert-task-list': insertTaskList,
+        'insert-link': insertLink,
+        'insert-image': insertImage,
+        'insert-code-block': insertCodeBlock,
+        'insert-table': insertTable,
+        'insert-divider': insertDivider
+      };
+      for (const [action, fn] of Object.entries(simpleInserters)) {
+        const btn = event.target.closest(`[data-action="${action}"]`);
+        if (btn) {
+          const blockEl = event.target.closest('.preview-block');
+          const index = Number(blockEl.dataset.index);
+          if (!Number.isNaN(index)) fn(index);
+          return;
+        }
+      }
+
       const cancelButton = event.target.closest('[data-action="cancel"]');
       if (cancelButton) {
         cancelActiveBlock();
@@ -1185,6 +1376,7 @@ console.log(state.mode);
           state.insertMenuBlock = null;
           state.insertMenuX = '50%';
           state.insertMenuPlacement = 'above';
+          state.insertSubmenu = null;
           renderPreview();
         }
         return;
@@ -1192,6 +1384,7 @@ console.log(state.mode);
       const index = Number(blockEl.dataset.index);
       if (Number.isNaN(index) || state.activeBlock === index) return;
       state.insertMenuBlock = null;
+      state.insertSubmenu = null;
       state.activeBlock = index;
       renderPreview();
     });
@@ -1282,6 +1475,16 @@ console.log(state.mode);
       state.theme = event.matches ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', state.theme);
       updateThemeIcon();
+    });
+
+    document.addEventListener('click', (event) => {
+      if (state.insertMenuBlock === null) return;
+      if (event.target.closest('.preview-insert-anchor')) return;
+      state.insertMenuBlock = null;
+      state.insertSubmenu = null;
+      state.insertMenuX = '50%';
+      state.insertMenuPlacement = 'above';
+      renderPreview();
     });
 
     startAppWhenReady();
