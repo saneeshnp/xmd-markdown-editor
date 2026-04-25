@@ -226,24 +226,22 @@
 
     .meta-strip {
       display: flex;
-      gap: var(--space-2);
+      align-items: center;
       flex-wrap: wrap;
       justify-content: center;
       font-variant-numeric: tabular-nums;
+      gap: 0;
     }
     .meta-strip span {
-      display: inline-flex;
-      align-items: center;
-      min-height: 1.95rem;
-      padding: 0.32rem 0.68rem;
-      border-radius: var(--radius-pill);
-      border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
-      background: color-mix(in srgb, var(--color-primary-soft) 70%, var(--color-surface));
-      color: var(--color-primary);
-      font-size: 0.76rem;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      box-shadow: none;
+      color: var(--color-text-faint);
+      font-size: 0.75rem;
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+    .meta-strip span + span::before {
+      content: '·';
+      margin: 0 0.5rem;
+      color: var(--color-border-strong);
     }
 
     .surface {
@@ -390,6 +388,54 @@
       padding: 0.35rem 0.5rem;
       border-radius: inherit;
     }
+    .preview-block-delete {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 14;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition);
+    }
+    .preview-block:hover > .preview-block-delete,
+    .preview-block-delete:focus-within {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .preview-block.is-editing > .preview-block-delete {
+      display: none;
+    }
+    .preview-block-delete-btn {
+      width: 1.55rem;
+      height: 1.55rem;
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid var(--color-border);
+      border-radius: 999px;
+      background: var(--color-surface);
+      color: var(--color-text-muted);
+      box-shadow: var(--shadow-sm);
+      transition: color var(--transition), border-color var(--transition), background var(--transition);
+    }
+    .preview-block-delete-btn:hover {
+      color: #b00020;
+      border-color: color-mix(in srgb, #b00020 40%, var(--color-border));
+      background: color-mix(in srgb, #b00020 6%, var(--color-surface));
+    }
+    .preview-block-delete-btn svg {
+      width: 0.78rem;
+      height: 0.78rem;
+    }
+    .icon-btn[aria-disabled="true"] {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .icon-btn[aria-disabled="true"]:hover {
+      transform: none;
+      border-color: var(--color-border);
+    }
+
     .preview-insert-trigger {
       position: absolute;
       left: 0.75rem;
@@ -718,13 +764,6 @@
       .preview-shell {
         min-height: 46vh;
       }
-      .meta-strip {
-        gap: var(--space-2);
-      }
-      .meta-strip span {
-        min-height: 1.9rem;
-        padding: 0.3rem 0.65rem;
-      }
       .brand-copy span {
         display: none;
       }
@@ -760,6 +799,12 @@
               <button class="mode-btn active" id="editModeBtn" role="tab" aria-selected="true" type="button">Text</button>
               <button class="mode-btn" id="previewModeBtn" role="tab" aria-selected="false" type="button">Markdown</button>
             </div>
+            <button class="icon-btn" id="undoBtn" type="button" aria-label="Undo block change">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"></path><path d="M4 9h11a5 5 0 0 1 0 10h-3"></path></svg>
+            </button>
+            <button class="icon-btn" id="redoBtn" type="button" aria-label="Redo block change">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"></path><path d="M20 9H9a5 5 0 0 0 0 10h3"></path></svg>
+            </button>
             <button class="icon-btn" id="copyBtn" type="button" aria-label="Copy markdown">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a2 2 0 0 1 2-2h9"></path></svg>
             </button>
@@ -820,6 +865,8 @@
     const cursorMeta = document.getElementById('cursorMeta');
     const copyBtn = document.getElementById('copyBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
     const scrollTopBtn = document.getElementById('scrollTopBtn');
     const themeToggle = document.getElementById('themeToggle');
     const STORAGE_KEY = 'x-markdown-content';
@@ -864,6 +911,51 @@ console.log(state.mode);
 
     document.documentElement.setAttribute('data-theme', state.theme);
 
+    const HISTORY_LIMIT = 50;
+    const undoStack = [];
+    const redoStack = [];
+
+    function pushHistory() {
+      undoStack.push(state.markdown);
+      if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+      redoStack.length = 0;
+      updateHistoryButtons();
+    }
+
+    function updateHistoryButtons() {
+      if (!undoBtn || !redoBtn) return;
+      const undoEmpty = undoStack.length === 0;
+      const redoEmpty = redoStack.length === 0;
+      undoBtn.setAttribute('aria-disabled', String(undoEmpty));
+      redoBtn.setAttribute('aria-disabled', String(redoEmpty));
+    }
+
+    function undo() {
+      if (undoStack.length === 0) return;
+      redoStack.push(state.markdown);
+      if (redoStack.length > HISTORY_LIMIT) redoStack.shift();
+      state.markdown = undoStack.pop();
+      state.activeBlock = null;
+      state.insertMenuBlock = null;
+      state.insertSubmenu = null;
+      persistMarkdown();
+      renderAll();
+      updateHistoryButtons();
+    }
+
+    function redo() {
+      if (redoStack.length === 0) return;
+      undoStack.push(state.markdown);
+      if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
+      state.markdown = redoStack.pop();
+      state.activeBlock = null;
+      state.insertMenuBlock = null;
+      state.insertSubmenu = null;
+      persistMarkdown();
+      renderAll();
+      updateHistoryButtons();
+    }
+
     let submenuHoverTimer = null;
     function clearSubmenuHoverTimer() {
       if (submenuHoverTimer) {
@@ -902,6 +994,7 @@ console.log(state.mode);
       state.activeBlock = null;
       document.documentElement.setAttribute('data-theme', state.theme);
       updateThemeIcon();
+      updateHistoryButtons();
       renderAll();
       setMode(state.mode);
     }
@@ -961,6 +1054,7 @@ console.log(state.mode);
     }
 
     function insertBlock(afterIndex, raw) {
+      pushHistory();
       const blocks = getBlocks(state.markdown);
       const nextIndex = Math.max(0, Math.min(blocks.length, afterIndex + 1));
       blocks.splice(nextIndex, 0, { raw, html: '' });
@@ -1017,6 +1111,20 @@ console.log(state.mode);
 
     function insertTable(afterIndex) {
       insertBlock(afterIndex, '| Column 1 | Column 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |');
+    }
+
+    function deleteBlock(index) {
+      const blocks = getBlocks(state.markdown);
+      if (index < 0 || index >= blocks.length) return;
+      pushHistory();
+      blocks.splice(index, 1);
+      state.markdown = blocks.length ? buildMarkdownFromBlocks(blocks) : '';
+      persistMarkdown();
+      if (state.activeBlock === index) state.activeBlock = null;
+      else if (state.activeBlock !== null && state.activeBlock > index) state.activeBlock -= 1;
+      state.insertMenuBlock = null;
+      state.insertSubmenu = null;
+      renderAll();
     }
 
     function getStats(markdown) {
@@ -1124,6 +1232,18 @@ console.log(state.mode);
         content.innerHTML = sanitize(block.html);
         wrapper.appendChild(content);
 
+        const deleteEl = document.createElement('div');
+        deleteEl.className = 'preview-block-delete';
+        deleteEl.innerHTML = `
+          <button class="preview-block-delete-btn" type="button" data-action="delete-block" aria-label="Delete block">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6 6 18"></path>
+              <path d="M6 6l12 12"></path>
+            </svg>
+          </button>
+        `;
+        wrapper.appendChild(deleteEl);
+
         const insertTrigger = document.createElement('div');
         insertTrigger.className = 'preview-insert-trigger';
         wrapper.appendChild(insertTrigger);
@@ -1150,7 +1270,6 @@ console.log(state.mode);
           }
           menu.style.setProperty('--insert-menu-x', state.insertMenuX);
           menu.innerHTML = `
-            <button type="button" data-action="insert-paragraph">Paragraph</button>
             <div class="preview-insert-row" data-submenu-host="headings">
               <button type="button" data-action="open-submenu" data-submenu="headings">Heading ›</button>
             </div>
@@ -1164,6 +1283,7 @@ console.log(state.mode);
               <button type="button" data-action="open-submenu" data-submenu="embed">Code &amp; Embed ›</button>
             </div>
             <button type="button" data-action="insert-divider">Divider</button>
+            <button type="button" data-action="insert-paragraph">Paragraph</button>
           `;
 
           const submenuTemplates = {
@@ -1246,7 +1366,14 @@ console.log(state.mode);
     function saveActiveBlock(nextRaw) {
       const blocks = getBlocks(state.markdown);
       if (state.activeBlock === null || !blocks[state.activeBlock]) return;
-      blocks[state.activeBlock].raw = nextRaw.trimEnd();
+      const nextTrimmed = nextRaw.trimEnd();
+      if (blocks[state.activeBlock].raw === nextTrimmed) {
+        state.activeBlock = null;
+        renderAll();
+        return;
+      }
+      pushHistory();
+      blocks[state.activeBlock].raw = nextTrimmed;
       state.markdown = buildMarkdownFromBlocks(blocks);
       persistMarkdown();
       state.activeBlock = null;
@@ -1286,6 +1413,15 @@ console.log(state.mode);
         const blockEl = event.target.closest('.preview-block');
         const textarea = blockEl.querySelector('.block-editor');
         saveActiveBlock(textarea.value);
+        return;
+      }
+
+      const deleteButton = event.target.closest('[data-action="delete-block"]');
+      if (deleteButton) {
+        event.stopPropagation();
+        const blockEl = event.target.closest('.preview-block');
+        const index = Number(blockEl.dataset.index);
+        if (!Number.isNaN(index)) deleteBlock(index);
         return;
       }
 
@@ -1434,6 +1570,31 @@ console.log(state.mode);
       if (textarea) saveActiveBlock(textarea.value);
     });
 
+    undoBtn.addEventListener('click', () => {
+      if (undoBtn.getAttribute('aria-disabled') === 'true') return;
+      undo();
+    });
+    redoBtn.addEventListener('click', () => {
+      if (redoBtn.getAttribute('aria-disabled') === 'true') return;
+      redo();
+    });
+
+    window.addEventListener('keydown', (event) => {
+      const key = event.key.toLowerCase();
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (key !== 'z' && key !== 'y') return;
+      const target = event.target;
+      const inEditable = target && (
+        target.matches?.('textarea, input') ||
+        target.isContentEditable
+      );
+      if (inEditable) return;
+      const isRedo = key === 'y' || (key === 'z' && event.shiftKey);
+      event.preventDefault();
+      if (isRedo) redo();
+      else undo();
+    });
+
     copyBtn.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(state.markdown);
@@ -1447,6 +1608,7 @@ console.log(state.mode);
 
     clearBtn.addEventListener('click', () => {
       if (!window.confirm('Clear the entire markdown document?')) return;
+      pushHistory();
       state.markdown = '';
       state.activeBlock = null;
       persistMarkdown();
