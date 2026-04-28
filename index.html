@@ -438,17 +438,18 @@
 
     .preview-insert-trigger {
       position: absolute;
-      left: 0.75rem;
-      right: 0.75rem;
-      bottom: -0.2rem;
-      height: 1.35rem;
+      left: 0.35rem;
+      right: 0.35rem;
+      bottom: -0.8rem;
+      height: 2.65rem;
       z-index: 1;
+      cursor: pointer;
     }
     .preview-insert-anchor {
       position: absolute;
-      left: 0.75rem;
-      right: 0.75rem;
-      bottom: 0;
+      left: 0.35rem;
+      right: 0.35rem;
+      bottom: -0.18rem;
       z-index: 15;
       opacity: 0;
       display: block;
@@ -457,6 +458,7 @@
       transition: opacity var(--transition), transform var(--transition);
     }
     .preview-insert-trigger:hover + .preview-insert-anchor,
+    .preview-insert-trigger:focus + .preview-insert-anchor,
     .preview-insert-anchor:hover,
     .preview-insert-anchor:focus-within,
     .preview-block.has-insert-menu .preview-insert-anchor {
@@ -466,7 +468,7 @@
     }
     .preview-insert-hitbox {
       width: 100%;
-      min-height: 1.5rem;
+      min-height: 2.35rem;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -475,7 +477,7 @@
     }
     .preview-insert-btn {
       width: 100%;
-      min-height: 1.35rem;
+      min-height: 2.1rem;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -486,6 +488,7 @@
       color: var(--color-text-muted);
     }
     .preview-insert-trigger:hover + .preview-insert-anchor .preview-insert-hitbox,
+    .preview-insert-trigger:focus + .preview-insert-anchor .preview-insert-hitbox,
     .preview-insert-anchor:hover .preview-insert-hitbox,
     .preview-insert-anchor:focus-within .preview-insert-hitbox,
     .preview-block.has-insert-menu .preview-insert-hitbox {
@@ -617,6 +620,13 @@
       font-size: var(--text-xs);
       font-family: var(--font-ui);
     }
+    .block-format-actions,
+    .block-commit-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
     .block-actions button {
       padding: 0.5rem 0.8rem;
       border-radius: var(--radius-pill);
@@ -625,10 +635,30 @@
       font-size: var(--text-xs);
       font-weight: 600;
     }
+    .block-actions button.format {
+      min-width: 2.15rem;
+      padding-inline: 0.7rem;
+    }
     .block-actions button.primary {
       background: var(--color-text);
       color: var(--color-surface);
       border-color: var(--color-text);
+    }
+    .block-actions button.danger {
+      color: #b00020;
+      border-color: color-mix(in srgb, #b00020 32%, var(--color-border));
+    }
+    .block-actions button:hover {
+      border-color: var(--color-border-strong);
+      background: var(--color-surface-2);
+    }
+    .block-actions button.primary:hover {
+      background: var(--color-text);
+      color: var(--color-surface);
+    }
+    .block-actions button.danger:hover {
+      background: color-mix(in srgb, #b00020 6%, var(--color-surface));
+      border-color: color-mix(in srgb, #b00020 44%, var(--color-border));
     }
 
     .preview-doc h1,
@@ -877,7 +907,7 @@
 
     const starterMarkdown = `# A quieter markdown editor
 
-This rebuild keeps the interface simpler and closer to a clean publishing surface.
+Edit markdown files as just plain text or live in real markdown format, just switch the mode.
 
 ## Preview mode edits inline
 
@@ -1207,8 +1237,12 @@ console.log(state.mode);
           editBox.innerHTML = `
             <textarea class="block-editor" aria-label="Inline markdown block editor"></textarea>
             <div class="block-actions">
-              <span>Editing block ${index + 1}</span>
-              <div>
+              <div class="block-format-actions" aria-label="Markdown formatting">
+                <button class="format" type="button" data-action="format-bold" aria-label="Bold selected text"><strong>B</strong></button>
+                <button class="format" type="button" data-action="format-italic" aria-label="Italicize selected text"><em>I</em></button>
+                <button class="danger" type="button" data-action="delete-block">Delete</button>
+              </div>
+              <div class="block-commit-actions">
                 <button type="button" data-action="cancel">Cancel</button>
                 <button type="button" class="primary" data-action="save">Save</button>
               </div>
@@ -1246,6 +1280,10 @@ console.log(state.mode);
 
         const insertTrigger = document.createElement('div');
         insertTrigger.className = 'preview-insert-trigger';
+        insertTrigger.dataset.action = 'toggle-insert-menu';
+        insertTrigger.setAttribute('tabindex', '0');
+        insertTrigger.setAttribute('role', 'button');
+        insertTrigger.setAttribute('aria-label', 'Add block below');
         wrapper.appendChild(insertTrigger);
 
         const insertAnchor = document.createElement('div');
@@ -1363,6 +1401,24 @@ console.log(state.mode);
       renderPreview();
     }
 
+    function wrapSelectedMarkdown(textarea, marker) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selected = textarea.value.slice(start, end);
+      const fallback = marker === '**' ? 'bold text' : 'italic text';
+      const replacement = `${marker}${selected || fallback}${marker}`;
+      textarea.setRangeText(replacement, start, end, 'select');
+      textarea.focus();
+
+      if (!selected) {
+        const innerStart = start + marker.length;
+        textarea.setSelectionRange(innerStart, innerStart + fallback.length);
+      }
+
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.max(96, textarea.scrollHeight)}px`;
+    }
+
     function saveActiveBlock(nextRaw) {
       const blocks = getBlocks(state.markdown);
       if (state.activeBlock === null || !blocks[state.activeBlock]) return;
@@ -1389,6 +1445,14 @@ console.log(state.mode);
       renderPreview();
     }
 
+    function closeInsertMenu() {
+      state.insertMenuBlock = null;
+      state.insertSubmenu = null;
+      state.insertMenuX = '50%';
+      state.insertMenuPlacement = 'above';
+      renderPreview();
+    }
+
     editor.addEventListener('input', () => {
       state.markdown = editor.value;
       persistMarkdown();
@@ -1408,6 +1472,22 @@ console.log(state.mode);
     });
 
     previewDoc.addEventListener('click', (event) => {
+      const boldButton = event.target.closest('[data-action="format-bold"]');
+      if (boldButton) {
+        const blockEl = event.target.closest('.preview-block');
+        const textarea = blockEl.querySelector('.block-editor');
+        if (textarea) wrapSelectedMarkdown(textarea, '**');
+        return;
+      }
+
+      const italicButton = event.target.closest('[data-action="format-italic"]');
+      if (italicButton) {
+        const blockEl = event.target.closest('.preview-block');
+        const textarea = blockEl.querySelector('.block-editor');
+        if (textarea) wrapSelectedMarkdown(textarea, '*');
+        return;
+      }
+
       const saveButton = event.target.closest('[data-action="save"]');
       if (saveButton) {
         const blockEl = event.target.closest('.preview-block');
@@ -1509,11 +1589,7 @@ console.log(state.mode);
       const blockEl = event.target.closest('.preview-block');
       if (!blockEl) {
         if (state.insertMenuBlock !== null) {
-          state.insertMenuBlock = null;
-          state.insertMenuX = '50%';
-          state.insertMenuPlacement = 'above';
-          state.insertSubmenu = null;
-          renderPreview();
+          closeInsertMenu();
         }
         return;
       }
@@ -1525,9 +1601,27 @@ console.log(state.mode);
       renderPreview();
     });
 
+    previewDoc.addEventListener('mousedown', (event) => {
+      if (event.target.closest('[data-action="format-bold"], [data-action="format-italic"]')) {
+        event.preventDefault();
+      }
+    });
+
     previewDoc.addEventListener('keydown', (event) => {
       const blockEl = event.target.closest('.preview-block');
-      if (!blockEl) return;
+      if (!blockEl) {
+        if (event.key === 'Escape' && state.insertMenuBlock !== null) {
+          event.preventDefault();
+          closeInsertMenu();
+        }
+        return;
+      }
+
+      if (event.key === 'Escape' && state.insertMenuBlock !== null && !event.target.matches('.block-editor')) {
+        event.preventDefault();
+        closeInsertMenu();
+        return;
+      }
 
       if ((event.key === 'Enter' || event.key === ' ') && !event.target.matches('textarea,button')) {
         event.preventDefault();
@@ -1580,6 +1674,12 @@ console.log(state.mode);
     });
 
     window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && state.insertMenuBlock !== null && !event.target.matches?.('.block-editor')) {
+        event.preventDefault();
+        closeInsertMenu();
+        return;
+      }
+
       const key = event.key.toLowerCase();
       if (!(event.metaKey || event.ctrlKey)) return;
       if (key !== 'z' && key !== 'y') return;
@@ -1641,12 +1741,8 @@ console.log(state.mode);
 
     document.addEventListener('click', (event) => {
       if (state.insertMenuBlock === null) return;
-      if (event.target.closest('.preview-insert-anchor')) return;
-      state.insertMenuBlock = null;
-      state.insertSubmenu = null;
-      state.insertMenuX = '50%';
-      state.insertMenuPlacement = 'above';
-      renderPreview();
+      if (event.target.closest('.preview-insert-anchor, .preview-insert-trigger')) return;
+      closeInsertMenu();
     });
 
     startAppWhenReady();
